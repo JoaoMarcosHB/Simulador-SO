@@ -1,0 +1,61 @@
+name: Build
+
+on:
+  push:
+    branches: [java]
+  pull_request:
+    branches: [java]
+
+jobs:
+  build:
+    name: Compile + smoke test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Compile sources
+        run: |
+          mkdir -p out
+          javac -d out src/sosim/*.java src/sosim/ui/*.java
+
+      - name: Smoke test - cenario basico
+        run: |
+          set -euo pipefail
+          saida=$(java -cp out sosim.Main entrada/entrada_basica.txt)
+          echo "$saida" | tail -20
+          echo "$saida" | grep -q "Resumo final da simulacao"
+          echo "$saida" | grep -q "Fim da simulacao"
+
+      - name: Smoke test - cenario misturado (tempo real + usuario)
+        run: |
+          set -euo pipefail
+          saida=$(java -cp out sosim.Main entrada/entrada_misturada.txt)
+          echo "$saida" | grep -q "Resumo final da simulacao"
+
+      - name: Smoke test - cenario com preempcao
+        run: |
+          set -euo pipefail
+          saida=$(java -cp out sosim.Main entrada/entrada_preempcao.txt)
+          echo "$saida" | grep -q "Preempcao:"
+          echo "$saida" | grep -q "Resumo final da simulacao"
+
+      - name: Build JAR executavel
+        run: |
+          mkdir -p dist
+          (cd out && jar cfe ../dist/sosim.jar sosim.ui.MainUI .)
+          ls -la dist/
+
+      - name: Upload artifact (sosim.jar)
+        uses: actions/upload-artifact@v4
+        with:
+          name: sosim-jar
+          path: dist/sosim.jar
+          if-no-files-found: error
