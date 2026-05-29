@@ -1,0 +1,109 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    name: Build artifacts + publish release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # necessario pra criar releases e fazer upload de assets
+
+    steps:
+      - name: Checkout (full history para gerar changelog)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Compile sources
+        run: |
+          mkdir -p out
+          javac -d out src/sosim/*.java src/sosim/ui/*.java
+
+      - name: Smoke tests
+        run: |
+          set -euo pipefail
+          for arquivo in entrada/entrada_basica.txt entrada/entrada_misturada.txt \
+                         entrada/entrada_pressao_memoria.txt entrada/entrada_preempcao.txt; do
+            echo "--- testando $arquivo ---"
+            saida=$(java -cp out sosim.Main "$arquivo")
+            echo "$saida" | grep -q "Resumo final da simulacao"
+            echo "$saida" | grep -q "Fim da simulacao"
+          done
+          echo "Todos os cenarios de smoke test passaram."
+
+      - name: Build JAR executavel
+        id: build_jar
+        run: |
+          mkdir -p dist
+          # JAR runnable pelo modo grafico - usuario chama com: java -jar sosim.jar
+          (cd out && jar cfe ../dist/sosim.jar sosim.ui.MainUI .)
+          ls -la dist/
+
+      - name: Montar bundle de distribuicao
+        run: |
+          VERSAO="${GITHUB_REF_NAME}"
+          PASTA="sosim-${VERSAO}"
+          rm -rf "dist/${PASTA}"
+          mkdir -p "dist/${PASTA}"
+          cp dist/sosim.jar "dist/${PASTA}/"
+          cp -r entrada "dist/${PASTA}/"
+          cp README.md "dist/${PASTA}/"
+          cp build.sh run.sh run-ui.sh "dist/${PASTA}/"
+          # tar.gz e zip - escolha do usuario
+          (cd dist && tar -czf "${PASTA}.tar.gz" "${PASTA}")
+          (cd dist && zip -qr "${PASTA}.zip" "${PASTA}")
+          ls -la dist/
+
+      - name: Publicar release com changelog
+        uses: softprops/action-gh-release@v2
+        with:
+          # generate_release_notes pede pro GitHub gerar o changelog automatico
+          # com base em PRs e commits desde a tag anterior
+          generate_release_notes: true
+          # pre-release se a tag tiver -alpha/-beta/-rc no nome
+          prerelease: ${{ contains(github.ref_name, '-alpha') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-rc') }}
+          name: "Simulador SO ${{ github.ref_name }}"
+          body: |
+            ## Simulador SO - ${{ github.ref_name }}
+
+            Implementacao em Java do trabalho de Sistemas Operacionais (IC/UFF) -
+            escalonador de processos com FCFS para tempo real, multilevel feedback
+            queue para usuario, gerenciador de memoria com first-fit e UI grafica
+            em Swing.
+
+            ### Como usar
+
+            **Modo grafico (recomendado):**
+            ```bash
+            java -jar sosim.jar entrada/entrada_basica.txt
+            ```
+
+            **Modo terminal:**
+            ```bash
+            java -cp sosim.jar sosim.Main entrada/entrada_basica.txt
+            ```
+
+            ### Requisitos
+            - Java 17 ou superior
+
+            ### Assets
+            - `sosim.jar` - JAR executavel apenas
+            - `sosim-${{ github.ref_name }}.tar.gz` - bundle completo (JAR + entradas de exemplo + README + scripts)
+            - `sosim-${{ github.ref_name }}.zip` - mesmo bundle em ZIP
+
+            ---
+          files: |
+            dist/sosim.jar
+            dist/sosim-${{ github.ref_name }}.tar.gz
+            dist/sosim-${{ github.ref_name }}.zip
+          fail_on_unmatched_files: true
