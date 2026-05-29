@@ -1,0 +1,11 @@
+# Mistura tempo real (prioridade 0) e usuario (prioridade 1)
+# [id, chegada, prioridade, cpu1, io, cpu2, ram_mb]
+#
+# Usuario chega cedo, comecam a executar e a partir de t=3 chega
+# um tempo real que vai preemptar
+[10, 0, 1, 6, 0, 0, 500]
+[11, 0, 1, 4, 3, 4, 700]
+[12, 1, 1, 2, 0, 0, 300]
+[13, 3, 0, 3, 0, 0, 256]
+[14, 5, 0, 2, 2, 2, 256]
+[15, 6, 1, 5, 2, 3, 1000]

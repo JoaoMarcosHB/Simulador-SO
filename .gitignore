@@ -1,0 +1,42 @@
+# compilados
+out/
+*.class
+*.jar
+*.war
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+.project
+.classpath
+.settings/
+nbproject/private/
+nbbuild/
+nbdist/
+
+# build systems
+target/
+build/
+.gradle/
+gradle/
+gradlew
+gradlew.bat
+mvnw
+mvnw.cmd
+.mvn/
+
+# logs e dumps
+*.log
+hs_err_pid*.log
+replay_pid*.log
+
+# sistema operacional
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# capturas de tela geradas em /tmp ou aqui
+ui_*.png
+trabalho_so*.html
