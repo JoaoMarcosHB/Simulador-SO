@@ -1,0 +1,8 @@
+# Arquivo de entrada basico - formato curto
+# [id, cpu1, io, cpu2, ram_mb]
+# Todos chegam em t=0 como processos de usuario
+[1, 4, 2, 4, 800]
+[2, 3, 0, 0, 400]
+[3, 2, 3, 2, 1200]
+[4, 5, 2, 3, 600]
+[5, 1, 0, 0, 200]
