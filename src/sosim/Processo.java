@@ -7,6 +7,7 @@ public class Processo {
     private final int id;
     private final TipoProcesso tipo;
     private final int instanteChegada;
+    private final int numDiscos;
 
     // duracoes originais lidas do arquivo
     private final int cpu1Total;
@@ -31,7 +32,7 @@ public class Processo {
 
     // recursos atualmente alocados
     private int cpuAlocada;    // -1 quando nao tem CPU
-    private int discoAlocado;  // -1 quando nao tem disco
+    //private int discoAlocado;  // -1 quando nao tem disco
     private int enderecoBase;  // endereco onde a imagem foi carregada na RAM; -1 se nao alocado
 
     // estatisticas, uteis no fim da simulacao
@@ -39,18 +40,32 @@ public class Processo {
     private int instanteTermino;    // quando entrou em FINALIZADO
 
     public Processo(int id, TipoProcesso tipo, int chegada,
-                    int cpu1, int io, int cpu2, int ram) {
+                    int cpu1, int io, int cpu2, int ram, int numDiscos) {
         this.id = id;
         this.tipo = tipo;
         this.instanteChegada = chegada;
         this.cpu1Total = cpu1;
-        this.ioTotal = io;
         this.cpu2Total = cpu2;
         this.memoriaMB = ram;
 
         this.cpu1Restante = cpu1;
-        this.ioRestante = io;
         this.cpu2Restante = cpu2;
+
+        // Processos de tempo real não tem IO nem alocação de discos
+        if(this.tipo == TipoProcesso.TEMPO_REAL){
+            this.ioTotal = 0;
+            this.ioRestante = 0;
+            this.numDiscos = 0;
+        } else {
+            this.ioTotal = io;
+            this.ioRestante = io;
+            // Tratamento para evitar de um processo exigir mais discos que o total
+            if (numDiscos > GerenciadorRecursos.NUM_DISCOS){
+                this.numDiscos = GerenciadorRecursos.NUM_DISCOS;
+            } else {
+                this.numDiscos = numDiscos;
+            }
+        }
 
         this.estado = EstadoProcesso.NOVO;
         // decide a fase inicial pelo que o processo realmente precisa fazer
@@ -61,7 +76,7 @@ public class Processo {
         this.filaFeedback = tipo == TipoProcesso.USUARIO ? 0 : -1;
         this.quantumUsado = 0;
         this.cpuAlocada = -1;
-        this.discoAlocado = -1;
+        //this.discoAlocado = -1;
         this.enderecoBase = -1;
         this.instanteInicio = -1;
         this.instanteTermino = -1;
@@ -85,8 +100,9 @@ public class Processo {
     public int getFilaFeedback() { return filaFeedback; }
     public int getQuantumUsado() { return quantumUsado; }
     public int getCpuAlocada() { return cpuAlocada; }
-    public int getDiscoAlocado() { return discoAlocado; }
+    //public int getDiscoAlocado() { return discoAlocado; }
     public int getEnderecoBase() { return enderecoBase; }
+    public int getNumDiscos() { return numDiscos; }
 
     public int getInstanteInicio() { return instanteInicio; }
     public int getInstanteTermino() { return instanteTermino; }
@@ -95,7 +111,7 @@ public class Processo {
     public void setFase(FaseProcesso nova) { this.fase = nova; }
     public void setFilaFeedback(int f) { this.filaFeedback = f; }
     public void setCpuAlocada(int c) { this.cpuAlocada = c; }
-    public void setDiscoAlocado(int d) { this.discoAlocado = d; }
+    //public void setDiscoAlocado(int d) { this.discoAlocado = d; }
     public void setEnderecoBase(int end) { this.enderecoBase = end; }
     public void setInstanteInicio(int t) { this.instanteInicio = t; }
     public void setInstanteTermino(int t) { this.instanteTermino = t; }

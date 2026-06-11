@@ -9,8 +9,8 @@ import java.util.List;
 // le o arquivo de processos
 // aceita dois formatos:
 //   [id, cpu1, io, cpu2, ram_mb]
-//     -> assume chegada=0 e tipo=usuario
-//   [id, chegada, prioridade, cpu1, io, cpu2, ram_mb]
+//     -> assume chegada=0 e tipo=usuario e numdiscos=0
+//   [id, chegada, prioridade, cpu1, io, cpu2, ram_mb, numdiscos]
 //     -> formato estendido com chegada explicita e prioridade (0 = tempo real, 1 = usuario)
 // linhas que comecam com # sao comentarios
 public class LeitorEntrada {
@@ -47,9 +47,9 @@ public class LeitorEntrada {
                 int io = Integer.parseInt(partes[2]);
                 int cpu2 = Integer.parseInt(partes[3]);
                 int ram = Integer.parseInt(partes[4]);
-                return new Processo(id, TipoProcesso.USUARIO, 0, cpu1, io, cpu2, ram);
+                return new Processo(id, TipoProcesso.USUARIO, 0, cpu1, io, cpu2, ram, 0);
             }
-            if (partes.length == 7) {
+            if (partes.length == 8) {
                 int id = Integer.parseInt(partes[0]);
                 int chegada = Integer.parseInt(partes[1]);
                 int prio = Integer.parseInt(partes[2]);
@@ -57,6 +57,7 @@ public class LeitorEntrada {
                 int io = Integer.parseInt(partes[4]);
                 int cpu2 = Integer.parseInt(partes[5]);
                 int ram = Integer.parseInt(partes[6]);
+                int discos = Integer.parseInt(partes[7]);
                 TipoProcesso tipo = TipoProcesso.dePrioridade(prio);
                 // valida limite de memoria pra tempo real
                 if (tipo == TipoProcesso.TEMPO_REAL && ram > 512) {
@@ -64,7 +65,7 @@ public class LeitorEntrada {
                             + id + " com " + ram + " MB excede o limite de 512 MB. Usando 512.");
                     ram = 512;
                 }
-                return new Processo(id, tipo, chegada, cpu1, io, cpu2, ram);
+                return new Processo(id, tipo, chegada, cpu1, io, cpu2, ram, discos);
             }
             System.err.println("Aviso linha " + numLinha + ": numero invalido de campos ("
                     + partes.length + "). Esperado 5 ou 7. Linha ignorada.");

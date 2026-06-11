@@ -55,17 +55,28 @@ public class EscalonadorFeedback {
     }
 
     // pega o proximo processo a executar, varrendo as filas em ordem de prioridade
-    public Processo proximo() {
+    public Processo proximo(int qtdDiscosDisp) {
         for (int i = 0; i < NUM_FILAS; i++) {
             if (!filas[i].isEmpty()) {
-                return filas[i].pollFirst();
+                for(Processo p: filas[i]){
+                    if(p.getNumDiscos() <= qtdDiscosDisp) {
+                        filas[i].remove(p);
+                        return p;
+                    }
+                }
             }
         }
         return null;
     }
 
-    public boolean temPronto() {
-        for (Deque<Processo> q : filas) if (!q.isEmpty()) return true;
+    public boolean temPronto(int qtdDiscosDisponiveis) {
+        for (Deque<Processo> q : filas){
+            if (!q.isEmpty()){
+                for (Processo p: q){
+                    if(p.getNumDiscos() <= qtdDiscosDisponiveis) return true;
+                }
+            }
+        }
         return false;
     }
 

@@ -42,13 +42,13 @@ public class GerenciadorRecursos {
 
     public void alocarDisco(int idx, Processo p) {
         discos[idx] = p;
-        p.setDiscoAlocado(idx);
+        //p.setDiscoAlocado(idx);
     }
 
     public void liberarDisco(int idx) {
         Processo p = discos[idx];
         if (p != null) {
-            p.setDiscoAlocado(-1);
+            //p.setDiscoAlocado(-1);
             discos[idx] = null;
         }
     }
@@ -68,12 +68,16 @@ public class GerenciadorRecursos {
         return c;
     }
 
+    public int discosDisponiveis(){
+        return NUM_DISCOS - discosOcupados();
+    }
     // remove o processo das estruturas, util quando o processo termina
     // ou e preemptado por tempo real
     public boolean retirarProcessoDeCpu(Processo p) {
         for (int i = 0; i < NUM_CPUS; i++) {
             if (cpus[i] == p) {
                 liberarCpu(i);
+                retirarProcessoDeDisco(p);
                 return true;
             }
         }
@@ -84,9 +88,8 @@ public class GerenciadorRecursos {
         for (int i = 0; i < NUM_DISCOS; i++) {
             if (discos[i] == p) {
                 liberarDisco(i);
-                return true;
             }
         }
-        return false;
+        return true;
     }
 }

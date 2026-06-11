@@ -56,7 +56,7 @@ public class PainelFilas extends JPanel {
         }
         desenharLinha(g2, "Esp. memoria", sim.getEsperandoMemoria(), y, Tema.ALERTA);
         y += LINHA;
-        desenharLinha(g2, "Esp. disco", sim.getEsperandoDisco(), y, Tema.ALERTA);
+        desenharLinha(g2, "Bloqueados: ", sim.getBloqueados(), y, Tema.CRITICO);
 
         g2.dispose();
     }
