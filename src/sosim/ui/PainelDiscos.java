@@ -84,21 +84,6 @@ public class PainelDiscos extends JPanel {
         FontMetrics fmId = g2.getFontMetrics();
         g2.drawString(id, x + (w - fmId.stringWidth(id)) / 2, y + 44);
 
-        g2.setFont(Tema.FONTE_PEQUENA);
-        String linha = "I/O " + (p.getIoTotal() - p.getIoRestante()) + "/" + p.getIoTotal();
-        FontMetrics fm = g2.getFontMetrics();
-        g2.drawString(linha, x + (w - fm.stringWidth(linha)) / 2, y + 64);
-
-        // barra de progresso do I/O
-        int bx = x + 10;
-        int by = y + h - 16;
-        int bw = w - 20;
-        int bh = 6;
-        g2.setColor(new Color(0, 0, 0, 90));
-        g2.fillRoundRect(bx, by, bw, bh, 6, 6);
-        double prog = p.getIoTotal() == 0 ? 0 : (p.getIoTotal() - p.getIoRestante()) / (double) p.getIoTotal();
-        g2.setColor(Tema.ACENTO);
-        g2.fillRoundRect(bx, by, (int) (bw * prog), bh, 6, 6);
     }
 
 }

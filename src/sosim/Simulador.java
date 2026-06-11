@@ -23,7 +23,7 @@ public class Simulador {
     private final Deque<Processo> esperandoMemoria;
 
     // processos que terminaram CPU1 e querem fazer I/O mas nao ha disco livre
-    private final Deque<Processo> esperandoDisco;
+    private final List<Processo> bloqueados;
 
     private int tempo;
     private final int totalProcessos;
@@ -42,7 +42,7 @@ public class Simulador {
         this.fcfs = new EscalonadorFCFS();
         this.feedback = new EscalonadorFeedback();
         this.esperandoMemoria = new ArrayDeque<>();
-        this.esperandoDisco = new ArrayDeque<>();
+        this.bloqueados = new ArrayList<>();
         this.tempo = 0;
         this.totalProcessos = entrada.size();
         this.processosConcluidos = 0;
@@ -89,7 +89,7 @@ public class Simulador {
         // 6. tratar transicoes derivadas desse avanco
         admitirChegadas();
         tentarAlocarMemoriaPendentes();
-        tentarAlocarDiscoPendentes();
+        //tentarAlocarDiscoPendentes();
         atenderPreempcaoTempoReal();
         atribuirCpusLivres();
         avancarUnidadeTempo();
@@ -202,14 +202,15 @@ public class Simulador {
                 // comeca direto na fase de I/O - rota pra disco e bloqueia
                 p.setEstado(EstadoProcesso.BLOQUEADO);
                 Logger.transicao(tempo, p, anterior, p.getEstado());
-                int d = recursos.procurarDiscoLivre();
-                if (d >= 0) {
-                    recursos.alocarDisco(d, p);
-                    Logger.detalhe(tempo, "Disco " + d + " alocado para P" + p.getId());
-                } else {
-                    esperandoDisco.addLast(p);
-                    Logger.detalhe(tempo, "P" + p.getId() + " aguardando disco");
-                }
+//                int d = recursos.procurarDiscoLivre();
+//                if (d >= 0) {
+//                    recursos.alocarDisco(d, p);
+//                    Logger.detalhe(tempo, "Disco " + d + " alocado para P" + p.getId());
+//                } else {
+//                    esperandoDisco.addLast(p);
+//                    Logger.detalhe(tempo, "P" + p.getId() + " aguardando disco");
+//                }
+                bloqueados.add(p);
                 return;
             }
             case CPU1:
@@ -225,18 +226,18 @@ public class Simulador {
 
     // tenta alocar disco para processos que terminaram CPU1 e querem I/O
     private void tentarAlocarDiscoPendentes() {
-        int n = esperandoDisco.size();
-        for (int i = 0; i < n; i++) {
-            Processo p = esperandoDisco.pollFirst();
-            int d = recursos.procurarDiscoLivre();
-            if (d >= 0) {
-                recursos.alocarDisco(d, p);
-                Logger.detalhe(tempo, "Disco " + d + " alocado para P" + p.getId());
-                // ja esta em BLOQUEADO, nao precisa transicionar
-            } else {
-                esperandoDisco.addLast(p);
-            }
-        }
+//        int n = esperandoDisco.size();
+//        for (int i = 0; i < n; i++) {
+//            Processo p = esperandoDisco.pollFirst();
+//            int d = recursos.procurarDiscoLivre();
+//            if (d >= 0) {
+//                recursos.alocarDisco(d, p);
+//                Logger.detalhe(tempo, "Disco " + d + " alocado para P" + p.getId());
+//                // ja esta em BLOQUEADO, nao precisa transicionar
+//            } else {
+//                esperandoDisco.addLast(p);
+//            }
+//        }
     }
 
     // tempo real preempta CPU ocupada por usuario quando nao ha CPU livre
@@ -258,6 +259,7 @@ public class Simulador {
             }
             Processo vitima = recursos.getProcessoNaCpu(alvo);
             recursos.liberarCpu(alvo);
+            recursos.retirarProcessoDeDisco(vitima);
             EstadoProcesso ant = vitima.getEstado();
             vitima.setEstado(EstadoProcesso.PRONTO);
             Logger.info(tempo, "Preempcao: P" + vitima.getId() + " (Q" + vitima.getFilaFeedback()
@@ -300,11 +302,12 @@ public class Simulador {
             colocarEmCpu(p, idx);
         }
         // usuario
-        while (feedback.temPronto()) {
+        while (feedback.temPronto(recursos.discosDisponiveis())) {
             int idx = recursos.procurarCpuLivre();
             if (idx < 0) break;
-            Processo p = feedback.proximo();
+            Processo p = feedback.proximo(recursos.discosDisponiveis());
             colocarEmCpu(p, idx);
+            colocarEmDisco(p);
         }
     }
 
@@ -319,6 +322,17 @@ public class Simulador {
         Logger.transicao(tempo, p, ant, p.getEstado());
     }
 
+    private void colocarEmDisco(Processo p){
+        for(int i = 0; i<p.getNumDiscos(); i++){
+            int idx = recursos.procurarDiscoLivre();
+            if(idx >= 0){
+                recursos.alocarDisco(idx, p);
+            } else {
+                break;
+            }
+        }
+    }
+
     // executa 1 u.t. em cada CPU ocupada e em cada disco ocupado
     // trata as transicoes que aparecem ao fim desse tick
     private void avancarUnidadeTempo() {
@@ -328,11 +342,7 @@ public class Simulador {
             Processo p = recursos.getProcessoNaCpu(i);
             if (p != null) emCpu.add(p);
         }
-        Set<Processo> emDisco = new HashSet<>();
-        for (int i = 0; i < GerenciadorRecursos.NUM_DISCOS; i++) {
-            Processo p = recursos.getProcessoNoDisco(i);
-            if (p != null) emDisco.add(p);
-        }
+
 
         // consome CPU
         for (Processo p : emCpu) {
@@ -341,7 +351,7 @@ public class Simulador {
             if (p.getTipo() == TipoProcesso.USUARIO) p.incrementarQuantum();
         }
         // consome I/O
-        for (Processo p : emDisco) {
+        for (Processo p : bloqueados) {
             p.consumirIo();
         }
 
@@ -350,7 +360,8 @@ public class Simulador {
         // se um disco foi liberado pelo fim do I/O DESSE MESMO tick, ele precisa
         // estar disponivel quando trataPosCpu rodar. invertendo a ordem o disco
         // ja estaria livre pra ser realocado
-        for (Processo p : emDisco) {
+        List<Processo> copiadosBloqueados = new ArrayList<>(bloqueados);
+        for (Processo p : copiadosBloqueados) {
             trataPosIo(p);
         }
         for (Processo p : emCpu) {
@@ -369,14 +380,7 @@ public class Simulador {
                 p.setEstado(EstadoProcesso.BLOQUEADO);
                 Logger.info(tempo + 1, "P" + p.getId() + " concluiu fase CPU1, solicitando I/O");
                 Logger.transicao(tempo + 1, p, ant, p.getEstado());
-                int d = recursos.procurarDiscoLivre();
-                if (d >= 0) {
-                    recursos.alocarDisco(d, p);
-                    Logger.detalhe(tempo + 1, "Disco " + d + " alocado para P" + p.getId());
-                } else {
-                    esperandoDisco.addLast(p);
-                    Logger.detalhe(tempo + 1, "P" + p.getId() + " aguardando disco");
-                }
+                bloqueados.add(p);
             } else if (p.getCpu2Total() > 0) {
                 // pula direto pra CPU2 - processo nao tem I/O
                 Logger.info(tempo + 1, "P" + p.getId() + " concluiu fase CPU1 (sem I/O), indo para CPU2");
@@ -419,10 +423,10 @@ public class Simulador {
     }
 
     private void trataPosIo(Processo p) {
-        if (p.getIoRestante() != 0) return;
-        // I/O terminou, libera disco
-        recursos.retirarProcessoDeDisco(p);
+        if (p.getIoRestante() > 0) return;
+
         Logger.info(tempo + 1, "P" + p.getId() + " concluiu I/O");
+        bloqueados.remove(p);
         if (p.getCpu2Total() > 0) {
             p.setFase(FaseProcesso.CPU2);
             EstadoProcesso ant = p.getEstado();
@@ -446,6 +450,7 @@ public class Simulador {
         Logger.info(tempo + 1, "P" + p.getId() + " finalizou. Memoria liberada ("
                 + p.getMemoriaMB() + " MB).");
         processosConcluidos++;
+        recursos.retirarProcessoDeDisco(p);
     }
 
     public void imprimirResumoFinal() {
@@ -482,5 +487,5 @@ public class Simulador {
     public EscalonadorFeedback getFeedback() { return feedback; }
     public List<Processo> getTodosProcessos() { return Collections.unmodifiableList(todosProcessos); }
     public List<Processo> getEsperandoMemoria() { return new ArrayList<>(esperandoMemoria); }
-    public List<Processo> getEsperandoDisco() { return new ArrayList<>(esperandoDisco); }
+    public List<Processo> getBloqueados() { return new ArrayList<>(bloqueados); }
 }

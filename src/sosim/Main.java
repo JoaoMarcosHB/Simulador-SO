@@ -12,8 +12,8 @@ public class Main {
             System.err.println();
             System.err.println("Formato do arquivo de entrada (uma linha por processo):");
             System.err.println("  [id, cpu1, io, cpu2, ram_mb]");
-            System.err.println("    -> chegada=0, tipo=usuario");
-            System.err.println("  [id, chegada, prioridade, cpu1, io, cpu2, ram_mb]");
+            System.err.println("    -> chegada=0, tipo=usuario, numdiscos=0");
+            System.err.println("  [id, chegada, prioridade, cpu1, io, cpu2, ram_mb, numdiscos]");
             System.err.println("    -> prioridade 0=tempo real, 1=usuario");
             System.err.println("Linhas iniciadas com # sao comentarios.");
             System.exit(1);

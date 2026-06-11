@@ -231,7 +231,7 @@ public class JanelaPrincipal extends JFrame {
         java.util.List<Processo> copia = new java.util.ArrayList<>();
         for (Processo p : processosCarregados) {
             copia.add(new Processo(p.getId(), p.getTipo(), p.getInstanteChegada(),
-                    p.getCpu1Total(), p.getIoTotal(), p.getCpu2Total(), p.getMemoriaMB()));
+                    p.getCpu1Total(), p.getIoTotal(), p.getCpu2Total(), p.getMemoriaMB(), p.getNumDiscos()));
         }
         sim = new Simulador(copia);
         sim.iniciar();
