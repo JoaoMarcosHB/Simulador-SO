@@ -89,7 +89,6 @@ public class Simulador {
         // 6. tratar transicoes derivadas desse avanco
         admitirChegadas();
         tentarAlocarMemoriaPendentes();
-        //tentarAlocarDiscoPendentes();
         atenderPreempcaoTempoReal();
         atribuirCpusLivres();
         avancarUnidadeTempo();
@@ -199,17 +198,9 @@ public class Simulador {
                 return;
             }
             case IO: {
-                // comeca direto na fase de I/O - rota pra disco e bloqueia
+                // comeca direto na fase de I/O e bloqueia
                 p.setEstado(EstadoProcesso.BLOQUEADO);
                 Logger.transicao(tempo, p, anterior, p.getEstado());
-//                int d = recursos.procurarDiscoLivre();
-//                if (d >= 0) {
-//                    recursos.alocarDisco(d, p);
-//                    Logger.detalhe(tempo, "Disco " + d + " alocado para P" + p.getId());
-//                } else {
-//                    esperandoDisco.addLast(p);
-//                    Logger.detalhe(tempo, "P" + p.getId() + " aguardando disco");
-//                }
                 bloqueados.add(p);
                 return;
             }
@@ -224,21 +215,7 @@ public class Simulador {
         }
     }
 
-    // tenta alocar disco para processos que terminaram CPU1 e querem I/O
-    private void tentarAlocarDiscoPendentes() {
-//        int n = esperandoDisco.size();
-//        for (int i = 0; i < n; i++) {
-//            Processo p = esperandoDisco.pollFirst();
-//            int d = recursos.procurarDiscoLivre();
-//            if (d >= 0) {
-//                recursos.alocarDisco(d, p);
-//                Logger.detalhe(tempo, "Disco " + d + " alocado para P" + p.getId());
-//                // ja esta em BLOQUEADO, nao precisa transicionar
-//            } else {
-//                esperandoDisco.addLast(p);
-//            }
-//        }
-    }
+
 
     // tempo real preempta CPU ocupada por usuario quando nao ha CPU livre
     // tempo real entre si nao se preempta (FCFS ate conclusao)
@@ -259,7 +236,6 @@ public class Simulador {
             }
             Processo vitima = recursos.getProcessoNaCpu(alvo);
             recursos.liberarCpu(alvo);
-            recursos.retirarProcessoDeDisco(vitima);
             EstadoProcesso ant = vitima.getEstado();
             vitima.setEstado(EstadoProcesso.PRONTO);
             Logger.info(tempo, "Preempcao: P" + vitima.getId() + " (Q" + vitima.getFilaFeedback()
@@ -307,7 +283,9 @@ public class Simulador {
             if (idx < 0) break;
             Processo p = feedback.proximo(recursos.discosDisponiveis());
             colocarEmCpu(p, idx);
-            colocarEmDisco(p);
+            if(!p.getDiscosAlocados()){
+                colocarEmDisco(p);
+            }
         }
     }
 

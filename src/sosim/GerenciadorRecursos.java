@@ -42,6 +42,7 @@ public class GerenciadorRecursos {
 
     public void alocarDisco(int idx, Processo p) {
         discos[idx] = p;
+        p.setDiscosAlocados(true);
         //p.setDiscoAlocado(idx);
     }
 
@@ -77,7 +78,6 @@ public class GerenciadorRecursos {
         for (int i = 0; i < NUM_CPUS; i++) {
             if (cpus[i] == p) {
                 liberarCpu(i);
-                retirarProcessoDeDisco(p);
                 return true;
             }
         }
@@ -90,6 +90,7 @@ public class GerenciadorRecursos {
                 liberarDisco(i);
             }
         }
+        p.setDiscosAlocados(false);
         return true;
     }
 }

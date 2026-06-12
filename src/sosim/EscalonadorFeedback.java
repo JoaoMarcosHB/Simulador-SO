@@ -59,7 +59,7 @@ public class EscalonadorFeedback {
         for (int i = 0; i < NUM_FILAS; i++) {
             if (!filas[i].isEmpty()) {
                 for(Processo p: filas[i]){
-                    if(p.getNumDiscos() <= qtdDiscosDisp) {
+                    if((p.getNumDiscos() <= qtdDiscosDisp) || p.getDiscosAlocados()) {
                         filas[i].remove(p);
                         return p;
                     }
@@ -73,7 +73,7 @@ public class EscalonadorFeedback {
         for (Deque<Processo> q : filas){
             if (!q.isEmpty()){
                 for (Processo p: q){
-                    if(p.getNumDiscos() <= qtdDiscosDisponiveis) return true;
+                    if((p.getNumDiscos() <= qtdDiscosDisponiveis) || p.getDiscosAlocados()) return true;
                 }
             }
         }

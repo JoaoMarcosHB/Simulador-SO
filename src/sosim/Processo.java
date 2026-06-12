@@ -32,7 +32,7 @@ public class Processo {
 
     // recursos atualmente alocados
     private int cpuAlocada;    // -1 quando nao tem CPU
-    //private int discoAlocado;  // -1 quando nao tem disco
+    private boolean discosAlocados;  // os discos estão alocados para o processo
     private int enderecoBase;  // endereco onde a imagem foi carregada na RAM; -1 se nao alocado
 
     // estatisticas, uteis no fim da simulacao
@@ -76,7 +76,7 @@ public class Processo {
         this.filaFeedback = tipo == TipoProcesso.USUARIO ? 0 : -1;
         this.quantumUsado = 0;
         this.cpuAlocada = -1;
-        //this.discoAlocado = -1;
+        this.discosAlocados = false;
         this.enderecoBase = -1;
         this.instanteInicio = -1;
         this.instanteTermino = -1;
@@ -100,7 +100,7 @@ public class Processo {
     public int getFilaFeedback() { return filaFeedback; }
     public int getQuantumUsado() { return quantumUsado; }
     public int getCpuAlocada() { return cpuAlocada; }
-    //public int getDiscoAlocado() { return discoAlocado; }
+    public boolean getDiscosAlocados() { return discosAlocados; }
     public int getEnderecoBase() { return enderecoBase; }
     public int getNumDiscos() { return numDiscos; }
 
@@ -111,7 +111,7 @@ public class Processo {
     public void setFase(FaseProcesso nova) { this.fase = nova; }
     public void setFilaFeedback(int f) { this.filaFeedback = f; }
     public void setCpuAlocada(int c) { this.cpuAlocada = c; }
-    //public void setDiscoAlocado(int d) { this.discoAlocado = d; }
+    public void setDiscosAlocados(boolean d) { this.discosAlocados = d; }
     public void setEnderecoBase(int end) { this.enderecoBase = end; }
     public void setInstanteInicio(int t) { this.instanteInicio = t; }
     public void setInstanteTermino(int t) { this.instanteTermino = t; }
