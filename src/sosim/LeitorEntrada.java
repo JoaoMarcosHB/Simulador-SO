@@ -68,7 +68,7 @@ public class LeitorEntrada {
                 return new Processo(id, tipo, chegada, cpu1, io, cpu2, ram, discos);
             }
             System.err.println("Aviso linha " + numLinha + ": numero invalido de campos ("
-                    + partes.length + "). Esperado 5 ou 7. Linha ignorada.");
+                    + partes.length + "). Esperado 5 ou 8. Linha ignorada.");
             return null;
         } catch (NumberFormatException nfe) {
             System.err.println("Aviso linha " + numLinha + ": valor nao numerico. Linha ignorada.");

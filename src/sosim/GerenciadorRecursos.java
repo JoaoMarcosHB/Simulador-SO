@@ -40,16 +40,15 @@ public class GerenciadorRecursos {
         }
     }
 
+    // poe o processo no slot idx. quem chama (Simulador) so marca o processo
+    // como "com discos" depois de garantir TODOS os discos que ele pediu
     public void alocarDisco(int idx, Processo p) {
         discos[idx] = p;
-        p.setDiscosAlocados(true);
-        //p.setDiscoAlocado(idx);
     }
 
     public void liberarDisco(int idx) {
         Processo p = discos[idx];
         if (p != null) {
-            //p.setDiscoAlocado(-1);
             discos[idx] = null;
         }
     }

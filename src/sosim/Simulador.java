@@ -22,8 +22,12 @@ public class Simulador {
     // processos que chegaram mas ainda nao conseguiram memoria
     private final Deque<Processo> esperandoMemoria;
 
-    // processos que terminaram CPU1 e querem fazer I/O mas nao ha disco livre
+    // processos atualmente em I/O (bloqueados, segurando os discos que pediram)
     private final List<Processo> bloqueados;
+
+    // processos cuja primeira fase e I/O (cpu1=0) e que ainda nao conseguiram
+    // os discos pra comecar - ficam aqui ate haver discos suficientes
+    private final List<Processo> esperandoDisco;
 
     private int tempo;
     private final int totalProcessos;
@@ -43,6 +47,7 @@ public class Simulador {
         this.feedback = new EscalonadorFeedback();
         this.esperandoMemoria = new ArrayDeque<>();
         this.bloqueados = new ArrayList<>();
+        this.esperandoDisco = new ArrayList<>();
         this.tempo = 0;
         this.totalProcessos = entrada.size();
         this.processosConcluidos = 0;
@@ -82,13 +87,14 @@ public class Simulador {
         }
         // ordem do tick:
         // 1. processar chegadas novas e tentar admitir quem espera memoria
-        // 2. tentar alocar disco para quem esta esperando
+        // 2. dar discos a quem comeca direto em I/O e estava esperando por eles
         // 3. atender preempcao por tempo real
-        // 4. atribuir CPUs livres
+        // 4. atribuir CPUs livres (alocando discos a quem vai despachar)
         // 5. avancar 1 u.t. nos recursos ocupados (consumir CPU e I/O)
         // 6. tratar transicoes derivadas desse avanco
         admitirChegadas();
         tentarAlocarMemoriaPendentes();
+        tentarIniciarIoPendentes();
         atenderPreempcaoTempoReal();
         atribuirCpusLivres();
         avancarUnidadeTempo();
@@ -198,10 +204,12 @@ public class Simulador {
                 return;
             }
             case IO: {
-                // comeca direto na fase de I/O e bloqueia
-                p.setEstado(EstadoProcesso.BLOQUEADO);
+                // comeca direto na fase de I/O: precisa garantir os discos antes
+                // de bloquear. fica PRONTO aguardando; tentarIniciarIoPendentes
+                // aloca os discos e o bloqueia assim que houver discos suficientes
+                p.setEstado(EstadoProcesso.PRONTO);
                 Logger.transicao(tempo, p, anterior, p.getEstado());
-                bloqueados.add(p);
+                esperandoDisco.add(p);
                 return;
             }
             case CPU1:
@@ -215,7 +223,24 @@ public class Simulador {
         }
     }
 
-
+    // processos que comecam direto em I/O ficam aqui ate conseguir todos os
+    // discos que pediram; so entao bloqueiam e comecam de fato a fase de I/O
+    private void tentarIniciarIoPendentes() {
+        int n = esperandoDisco.size();
+        for (int i = 0; i < n; i++) {
+            Processo p = esperandoDisco.remove(0);
+            if (tentarAlocarDiscos(p)) {
+                EstadoProcesso ant = p.getEstado();
+                p.setEstado(EstadoProcesso.BLOQUEADO);
+                Logger.transicao(tempo, p, ant, p.getEstado());
+                bloqueados.add(p);
+            } else {
+                // ainda sem discos suficientes, tenta de novo no proximo tick
+                esperandoDisco.add(p);
+                Logger.detalhe(tempo, "P" + p.getId() + " aguardando disco para iniciar I/O");
+            }
+        }
+    }
 
     // tempo real preempta CPU ocupada por usuario quando nao ha CPU livre
     // tempo real entre si nao se preempta (FCFS ate conclusao)
@@ -283,8 +308,10 @@ public class Simulador {
             if (idx < 0) break;
             Processo p = feedback.proximo(recursos.discosDisponiveis());
             colocarEmCpu(p, idx);
-            if(!p.getDiscosAlocados()){
-                colocarEmDisco(p);
+            // proximo() so devolve quem ja tem discos ou quem cabe nos livres,
+            // entao essa alocacao e sempre completa
+            if (!p.getDiscosAlocados()) {
+                tentarAlocarDiscos(p);
             }
         }
     }
@@ -300,15 +327,21 @@ public class Simulador {
         Logger.transicao(tempo, p, ant, p.getEstado());
     }
 
-    private void colocarEmDisco(Processo p){
-        for(int i = 0; i<p.getNumDiscos(); i++){
+    // tenta reservar TODOS os discos que o processo pediu, de forma atomica:
+    // ou consegue todos e marca o processo como "com discos", ou nao mexe em nada.
+    // os discos ficam com o processo ate ele finalizar (recurso compartilhado
+    // exclusivo durante toda a execucao)
+    private boolean tentarAlocarDiscos(Processo p) {
+        if (p.getDiscosAlocados()) return true;
+        if (p.getNumDiscos() == 0) return true;
+        if (recursos.discosDisponiveis() < p.getNumDiscos()) return false;
+        for (int i = 0; i < p.getNumDiscos(); i++) {
             int idx = recursos.procurarDiscoLivre();
-            if(idx >= 0){
-                recursos.alocarDisco(idx, p);
-            } else {
-                break;
-            }
+            recursos.alocarDisco(idx, p); // garantido >= 0 pela checagem acima
         }
+        p.setDiscosAlocados(true);
+        Logger.detalhe(tempo, p.getNumDiscos() + " disco(s) alocado(s) para P" + p.getId());
+        return true;
     }
 
     // executa 1 u.t. em cada CPU ocupada e em cada disco ocupado
@@ -334,10 +367,8 @@ public class Simulador {
         }
 
         // trata transicoes - I/O primeiro, depois CPU
-        // ordem importa: um processo que terminou CPU1 nesse tick precisa de disco;
-        // se um disco foi liberado pelo fim do I/O DESSE MESMO tick, ele precisa
-        // estar disponivel quando trataPosCpu rodar. invertendo a ordem o disco
-        // ja estaria livre pra ser realocado
+        // quem termina I/O pode finalizar e liberar seus discos; tratando I/O
+        // antes da CPU esses discos ja entram livres no proximo despacho
         List<Processo> copiadosBloqueados = new ArrayList<>(bloqueados);
         for (Processo p : copiadosBloqueados) {
             trataPosIo(p);
@@ -428,6 +459,9 @@ public class Simulador {
         Logger.info(tempo + 1, "P" + p.getId() + " finalizou. Memoria liberada ("
                 + p.getMemoriaMB() + " MB).");
         processosConcluidos++;
+        if (p.getDiscosAlocados()) {
+            Logger.detalhe(tempo + 1, "P" + p.getId() + " liberou " + p.getNumDiscos() + " disco(s)");
+        }
         recursos.retirarProcessoDeDisco(p);
     }
 
@@ -466,4 +500,5 @@ public class Simulador {
     public List<Processo> getTodosProcessos() { return Collections.unmodifiableList(todosProcessos); }
     public List<Processo> getEsperandoMemoria() { return new ArrayList<>(esperandoMemoria); }
     public List<Processo> getBloqueados() { return new ArrayList<>(bloqueados); }
+    public List<Processo> getEsperandoDisco() { return new ArrayList<>(esperandoDisco); }
 }

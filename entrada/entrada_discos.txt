@@ -1,7 +1,11 @@
-# Forca o caso de preempcao: 4 processos de usuario ocupam todas
-# as CPUs e em t=1 (no meio do quantum) chega um tempo real
-# que deve roubar uma CPU de alguem para executar de imediato
-# [id, chegada, prioridade, cpu1, io, cpu2, ram_mb]
+# Demonstra os discos como recurso compartilhado que limita a concorrencia.
+# Os 5 processos de usuario juntos pedem 1+3+1+0+4 = 9 discos, mas so existem 4.
+# Cada processo segura os discos que pediu por TODA a sua execucao (CPU1, I/O e
+# CPU2), entao quem precisa de muitos discos so roda quando ha discos suficientes:
+#   - P33 pede 5 (capado para 4), logo so executa sozinho, sem nenhum outro
+#     processo de usuario com disco rodando ao mesmo tempo.
+#   - P34 e tempo real: nao usa disco e preempta CPU mesmo com discos lotados.
+# [id, chegada, prioridade, cpu1, io, cpu2, ram_mb, numdiscos]
 [30, 0, 1, 8, 2, 1, 500, 1]
 [31, 0, 1, 3, 4, 0, 500, 3]
 [32, 0, 1, 8, 0, 0, 500, 1]
