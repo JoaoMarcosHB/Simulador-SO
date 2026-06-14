@@ -24,7 +24,8 @@ public class PainelCpus extends JPanel {
 
     public PainelCpus() {
         setBackground(Tema.FUNDO_PAINEL);
-        setPreferredSize(new Dimension(0, 130));
+        // altura folgada pra caber id + tipo + fase + indicador sem sobreposicao
+        setPreferredSize(new Dimension(0, 150));
     }
 
     public void setSimulador(Simulador s) {
@@ -59,6 +60,7 @@ public class PainelCpus extends JPanel {
         int largTotal = getWidth() - padding * 2 - gap * (n - 1);
         int largura = largTotal / n;
         int altura = getHeight() - topo - padding;
+        if (largura <= 0 || altura <= 0) { g2.dispose(); return; }
 
         for (int i = 0; i < n; i++) {
             int x = padding + i * (largura + gap);

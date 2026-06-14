@@ -100,7 +100,9 @@ public class PainelFilas extends JPanel {
             x += tw + 6;
             if (x > getWidth() - 60) {
                 g2.setColor(Tema.TEXTO_FRACO);
-                g2.drawString("...", x, y);
+                // mantem as reticencias dentro do painel
+                int ex = Math.min(x, getWidth() - fm.stringWidth("...") - 6);
+                g2.drawString("...", ex, y);
                 break;
             }
         }
