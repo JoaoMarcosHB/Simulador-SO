@@ -36,8 +36,11 @@ public class Processo {
     private int enderecoBase;  // endereco onde a imagem foi carregada na RAM; -1 se nao alocado
 
     // estatisticas, uteis no fim da simulacao
-    private int instanteInicio;     // primeira vez que ganhou CPU
+    private int instanteInicio;     // primeira vez que comecou a executar (CPU ou I/O)
     private int instanteTermino;    // quando entrou em FINALIZADO
+    // descartado: pediu mais memoria do que cabe na zona dele e foi rejeitado;
+    // nesse caso turnaround/espera nao fazem sentido (nunca executou)
+    private boolean descartado;
 
     public Processo(int id, TipoProcesso tipo, int chegada,
                     int cpu1, int io, int cpu2, int ram, int numDiscos) {
@@ -60,8 +63,11 @@ public class Processo {
             this.ioTotal = io;
             this.ioRestante = io;
             // Tratamento para evitar de um processo exigir mais discos que o total
+            // (ou um valor negativo, que nao faz sentido)
             if (numDiscos > GerenciadorRecursos.NUM_DISCOS){
                 this.numDiscos = GerenciadorRecursos.NUM_DISCOS;
+            } else if (numDiscos < 0) {
+                this.numDiscos = 0;
             } else {
                 this.numDiscos = numDiscos;
             }
@@ -81,6 +87,7 @@ public class Processo {
         this.enderecoBase = -1;
         this.instanteInicio = -1;
         this.instanteTermino = -1;
+        this.descartado = false;
     }
 
     public int getId() { return id; }
@@ -116,6 +123,9 @@ public class Processo {
     public void setEnderecoBase(int end) { this.enderecoBase = end; }
     public void setInstanteInicio(int t) { this.instanteInicio = t; }
     public void setInstanteTermino(int t) { this.instanteTermino = t; }
+
+    public boolean foiDescartado() { return descartado; }
+    public void marcarDescartado() { this.descartado = true; }
 
     public void resetarQuantum() { this.quantumUsado = 0; }
     public void incrementarQuantum() { this.quantumUsado++; }

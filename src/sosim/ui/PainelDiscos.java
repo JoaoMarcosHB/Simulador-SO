@@ -50,6 +50,7 @@ public class PainelDiscos extends JPanel {
         int largTotal = getWidth() - padding * 2 - gap * (n - 1);
         int largura = largTotal / n;
         int altura = getHeight() - topo - padding;
+        if (largura <= 0 || altura <= 0) { g2.dispose(); return; }
         for (int i = 0; i < n; i++) {
             int x = padding + i * (largura + gap);
             desenharSlot(g2, x, topo, largura, altura, i);

@@ -1,6 +1,6 @@
 # Gerenciador e Escalonador de Processos
 
-Simulador de um sistema operacional com escalonamento de processos e controle de recursos, baseado na especificação do **Trabalho de Sistemas Operacionais** (IC/UFF — Profª Vanessa Braganholo / Boeres) disponível em <https://sites.google.com/ic.uff.br/trabalhodeso/home>.
+Simulador de um sistema operacional com escalonamento de processos e controle de recursos, baseado na especificação do **Trabalho de Sistemas Operacionais** (IC/UFF — Profª Boeres) disponível em <https://sites.google.com/ic.uff.br/trabalhodeso/home>.
 
 Implementação em Java puro (sem dependências externas, compila com `javac`).
 

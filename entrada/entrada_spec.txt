@@ -1,0 +1,6 @@
+# Exemplo exato da especificacao do trabalho:
+# https://sites.google.com/ic.uff.br/trabalhodeso/home
+# Formato curto: [id, cpu1, io, cpu2, ram_mb]  (chegada=0, tipo=usuario, numdiscos=0)
+[7, 4, 2, 4, 800]
+[12, 10, 4, 8, 1200]
+[5, 15, 0, 0, 512]

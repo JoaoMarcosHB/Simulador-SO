@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Deque;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -18,6 +18,9 @@ public class Simulador {
     private final GerenciadorRecursos recursos;
     private final EscalonadorFCFS fcfs;       // tempo real
     private final EscalonadorFeedback feedback; // usuario
+
+    // motor que executa o trabalho de cada u.t. em paralelo (1 thread por CPU)
+    private final MotorParalelo motor;
 
     // processos que chegaram mas ainda nao conseguiram memoria
     private final Deque<Processo> esperandoMemoria;
@@ -45,6 +48,7 @@ public class Simulador {
         this.recursos = new GerenciadorRecursos();
         this.fcfs = new EscalonadorFCFS();
         this.feedback = new EscalonadorFeedback();
+        this.motor = new MotorParalelo();
         this.esperandoMemoria = new ArrayDeque<>();
         this.bloqueados = new ArrayList<>();
         this.esperandoDisco = new ArrayList<>();
@@ -64,6 +68,8 @@ public class Simulador {
         Logger.detalhe(tempo, "Recursos: " + GerenciadorRecursos.NUM_CPUS + " CPUs, "
                 + GerenciadorRecursos.NUM_DISCOS + " discos, "
                 + GerenciadorMemoria.TAMANHO_TOTAL_MB + " MB de RAM");
+        Logger.detalhe(tempo, "Execucao paralela: " + motor.getNumThreads()
+                + " threads de CPU (1 por nucleo), sincronizadas por uma barreira a cada u.t.");
         Logger.detalhe(tempo, "Total de processos: " + totalProcessos);
     }
 
@@ -163,6 +169,7 @@ public class Simulador {
             if (p.getMemoriaMB() > capacidadeZona) {
                 Logger.erro(tempo, "P" + p.getId() + " pede " + p.getMemoriaMB()
                         + " MB mas a zona dele so tem " + capacidadeZona + " MB. Descartando.");
+                p.marcarDescartado();
                 p.setEstado(EstadoProcesso.FINALIZADO);
                 p.setFase(FaseProcesso.CONCLUIDO);
                 p.setInstanteTermino(tempo);
@@ -232,6 +239,8 @@ public class Simulador {
             if (tentarAlocarDiscos(p)) {
                 EstadoProcesso ant = p.getEstado();
                 p.setEstado(EstadoProcesso.BLOQUEADO);
+                // I/O e a primeira coisa que ele faz - conta como inicio da execucao
+                if (p.getInstanteInicio() < 0) p.setInstanteInicio(tempo);
                 Logger.transicao(tempo, p, ant, p.getEstado());
                 bloqueados.add(p);
             } else {
@@ -348,23 +357,32 @@ public class Simulador {
     // trata as transicoes que aparecem ao fim desse tick
     private void avancarUnidadeTempo() {
         // colete antes de modificar pra evitar inconsistencia
-        Set<Processo> emCpu = new HashSet<>();
+        // LinkedHashSet mantem a ordem por indice de CPU, deixando a saida
+        // deterministica (HashSet variava a ordem entre execucoes/ambientes)
+        Set<Processo> emCpu = new LinkedHashSet<>();
         for (int i = 0; i < GerenciadorRecursos.NUM_CPUS; i++) {
             Processo p = recursos.getProcessoNaCpu(i);
             if (p != null) emCpu.add(p);
         }
 
 
-        // consome CPU
+        // consome CPU e I/O EM PARALELO.
+        // o avanco de cada CPU ocupada e de cada disco em I/O e independente
+        // (cada tarefa mexe somente no seu proprio processo), entao distribuimos
+        // essas tarefas no pool de threads do motor. A barreira em executarTick
+        // garante que todas terminem antes de tratarmos as transicoes do tick.
+        List<Runnable> tarefasTick = new ArrayList<>();
         for (Processo p : emCpu) {
-            if (p.getFase() == FaseProcesso.CPU1) p.consumirCpu1();
-            else if (p.getFase() == FaseProcesso.CPU2) p.consumirCpu2();
-            if (p.getTipo() == TipoProcesso.USUARIO) p.incrementarQuantum();
+            tarefasTick.add(() -> {
+                if (p.getFase() == FaseProcesso.CPU1) p.consumirCpu1();
+                else if (p.getFase() == FaseProcesso.CPU2) p.consumirCpu2();
+                if (p.getTipo() == TipoProcesso.USUARIO) p.incrementarQuantum();
+            });
         }
-        // consome I/O
         for (Processo p : bloqueados) {
-            p.consumirIo();
+            tarefasTick.add(() -> p.consumirIo());
         }
+        motor.executarTick(tarefasTick);
 
         // trata transicoes - I/O primeiro, depois CPU
         // quem termina I/O pode finalizar e liberar seus discos; tratando I/O
@@ -474,11 +492,17 @@ public class Simulador {
                 "ID", "Tipo", "Chegada", "Inicio", "Termino", "Turnaround", "Espera");
         for (Processo p : todosProcessos) {
             // processos que nao chegaram a terminar saem com tracos no lugar
-            // dos numeros pra deixar claro que aquele dado nao e valido
-            String inicio = p.getInstanteInicio() < 0 ? "-" : String.valueOf(p.getInstanteInicio());
-            String termino = p.foiFinalizado() ? String.valueOf(p.getInstanteTermino()) : "-";
-            String turn = p.foiFinalizado() ? String.valueOf(p.getTurnaround()) : "(nao terminou)";
-            String esp = p.foiFinalizado() ? String.valueOf(p.getEspera()) : "-";
+            // dos numeros pra deixar claro que aquele dado nao e valido;
+            // descartados (pediram memoria demais) nunca executaram
+            String inicio, termino, turn, esp;
+            if (p.foiDescartado()) {
+                inicio = "-"; termino = "-"; turn = "(descartado)"; esp = "-";
+            } else {
+                inicio = p.getInstanteInicio() < 0 ? "-" : String.valueOf(p.getInstanteInicio());
+                termino = p.foiFinalizado() ? String.valueOf(p.getInstanteTermino()) : "-";
+                turn = p.foiFinalizado() ? String.valueOf(p.getTurnaround()) : "(nao terminou)";
+                esp = p.foiFinalizado() ? String.valueOf(p.getEspera()) : "-";
+            }
             System.out.printf("%-5d %-12s %-9d %-9s %-9s %-12s %-9s%n",
                     p.getId(), p.getTipo(), p.getInstanteChegada(),
                     inicio, termino, turn, esp);

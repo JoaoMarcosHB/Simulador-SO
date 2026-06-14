@@ -142,7 +142,7 @@ public class JanelaPrincipal extends JFrame {
             @Override public void actionPerformed(ActionEvent e) { togglePlay(); }
         });
         btnPasso.addActionListener(new AbstractAction() {
-            @Override public void actionPerformed(ActionEvent e) { avancarUmPasso(); }
+            @Override public void actionPerformed(ActionEvent e) { avancarUmPasso(true); }
         });
         btnReset.addActionListener(new AbstractAction() {
             @Override public void actionPerformed(ActionEvent e) { reiniciar(); }
@@ -213,6 +213,7 @@ public class JanelaPrincipal extends JFrame {
                 JOptionPane.showMessageDialog(this,
                         "Nenhum processo lido do arquivo.",
                         "Arquivo vazio", JOptionPane.WARNING_MESSAGE);
+                atualizarBotoes();
                 return;
             }
             arquivoAtual = caminho;
@@ -221,6 +222,7 @@ public class JanelaPrincipal extends JFrame {
             JOptionPane.showMessageDialog(this,
                     "Falha ao ler arquivo: " + ex.getMessage(),
                     "Erro", JOptionPane.ERROR_MESSAGE);
+            atualizarBotoes();
         }
     }
 
@@ -256,6 +258,7 @@ public class JanelaPrincipal extends JFrame {
     private void iniciarTimer() {
         if (sim == null) return;
         if (!sim.haMaisPassos()) return;
+        painelLog.limparDestaque();   // Play e continuo: nao destaca; tira o amarelo do ultimo passo
         tocando = true;
         btnPlayPause.setText("Pausar");
         timer.start();
@@ -271,9 +274,17 @@ public class JanelaPrincipal extends JFrame {
         if (tocando) pararTimer();
     }
 
+    // versao sem destaque: usada pelo Play (timer), que e continuo
     private void avancarUmPasso() {
+        avancarUmPasso(false);
+    }
+
+    // destacar=true (Passo manual): as linhas de log deste passo ficam em amarelo
+    private void avancarUmPasso(boolean destacar) {
         if (sim == null) return;
+        if (destacar) painelLog.iniciarPassoDestacado();
         boolean fezAlgo = sim.passo();
+        if (destacar) painelLog.aplicarPassoDestacado();
         atualizarTudo();
         atualizarBotoes();
         if (!fezAlgo || !sim.haMaisPassos()) {
@@ -281,9 +292,10 @@ public class JanelaPrincipal extends JFrame {
         }
     }
 
-    // expostos para o utilitario de captura headless
-    public void passoExterno() { avancarUmPasso(); }
+    // expostos para o utilitario de captura headless (um passo = destacado)
+    public void passoExterno() { avancarUmPasso(true); }
     public void atualizarTudoExterno() { atualizarTudo(); }
+    public boolean temSimulador() { return sim != null; }
 
     private void reiniciar() {
         pararSeTocando();
@@ -314,11 +326,17 @@ public class JanelaPrincipal extends JFrame {
         };
         for (Processo p : sim.getTodosProcessos()) {
             // usa os helpers do Processo - centralizam a formula em um lugar
-            // e dao "-" pros processos que nao chegaram a terminar
-            Object inicio = p.getInstanteInicio() < 0 ? "-" : p.getInstanteInicio();
-            Object termino = p.foiFinalizado() ? p.getInstanteTermino() : "-";
-            Object turn = p.foiFinalizado() ? p.getTurnaround() : "(nao terminou)";
-            Object esp = p.foiFinalizado() ? p.getEspera() : "-";
+            // e dao "-" pros processos que nao chegaram a terminar;
+            // descartados (memoria demais) nunca executaram
+            Object inicio, termino, turn, esp;
+            if (p.foiDescartado()) {
+                inicio = "-"; termino = "-"; turn = "(descartado)"; esp = "-";
+            } else {
+                inicio = p.getInstanteInicio() < 0 ? "-" : p.getInstanteInicio();
+                termino = p.foiFinalizado() ? p.getInstanteTermino() : "-";
+                turn = p.foiFinalizado() ? p.getTurnaround() : "(nao terminou)";
+                esp = p.foiFinalizado() ? p.getEspera() : "-";
+            }
             modelo.addRow(new Object[]{p.getId(), p.getTipo(),
                     p.getInstanteChegada(), inicio, termino, turn, esp});
         }

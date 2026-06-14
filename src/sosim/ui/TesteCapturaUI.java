@@ -30,6 +30,14 @@ public class TesteCapturaUI {
         String pngOut = args[2];
 
         Logger.setConsoleHabilitado(false);
+
+        // valida a entrada ANTES de subir a UI: arquivo vazio/invalido faria a
+        // janela abrir um dialogo modal que travaria esta execucao automatizada
+        if (new sosim.LeitorEntrada().ler(arquivo).isEmpty()) {
+            System.err.println("Falha ao carregar arquivo (vazio ou invalido): " + arquivo);
+            System.exit(1);
+        }
+
         try { UIManager.setLookAndFeel(UIManager.getCrossPlatformLookAndFeelClassName()); }
         catch (Exception ignored) {}
 

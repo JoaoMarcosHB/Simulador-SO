@@ -50,6 +50,7 @@ public class PainelMemoria extends JPanel {
         int barY = 40;
         int barW = getWidth() - padding * 2;
         int barH = 56;
+        if (barW <= 0) { g2.dispose(); return; }
         int totalMB = GerenciadorMemoria.TAMANHO_TOTAL_MB;
 
         // fundo da barra

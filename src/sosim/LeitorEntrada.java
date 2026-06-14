@@ -47,6 +47,7 @@ public class LeitorEntrada {
                 int io = Integer.parseInt(partes[2]);
                 int cpu2 = Integer.parseInt(partes[3]);
                 int ram = Integer.parseInt(partes[4]);
+                if (!naoNegativos(numLinha, cpu1, io, cpu2, ram)) return null;
                 return new Processo(id, TipoProcesso.USUARIO, 0, cpu1, io, cpu2, ram, 0);
             }
             if (partes.length == 8) {
@@ -58,7 +59,18 @@ public class LeitorEntrada {
                 int cpu2 = Integer.parseInt(partes[5]);
                 int ram = Integer.parseInt(partes[6]);
                 int discos = Integer.parseInt(partes[7]);
+                if (!naoNegativos(numLinha, chegada, cpu1, io, cpu2, ram, discos)) return null;
+                if (prio != 0 && prio != 1) {
+                    System.err.println("Aviso linha " + numLinha + ": prioridade invalida ("
+                            + prio + "). Esperado 0 (tempo real) ou 1 (usuario). Linha ignorada.");
+                    return null;
+                }
                 TipoProcesso tipo = TipoProcesso.dePrioridade(prio);
+                // tempo real nao usa I/O nem discos - avisa que esses campos serao ignorados
+                if (tipo == TipoProcesso.TEMPO_REAL && (io != 0 || discos != 0)) {
+                    System.err.println("Aviso linha " + numLinha + ": processo tempo real #"
+                            + id + " nao usa I/O nem discos. Ignorando io=" + io + " e discos=" + discos + ".");
+                }
                 // valida limite de memoria pra tempo real
                 if (tipo == TipoProcesso.TEMPO_REAL && ram > 512) {
                     System.err.println("Aviso linha " + numLinha + ": processo tempo real #"
@@ -74,5 +86,17 @@ public class LeitorEntrada {
             System.err.println("Aviso linha " + numLinha + ": valor nao numerico. Linha ignorada.");
             return null;
         }
+    }
+
+    // rejeita a linha (com aviso) se qualquer um dos valores for negativo
+    private boolean naoNegativos(int numLinha, int... vals) {
+        for (int v : vals) {
+            if (v < 0) {
+                System.err.println("Aviso linha " + numLinha
+                        + ": valores de tempo/memoria/discos nao podem ser negativos. Linha ignorada.");
+                return false;
+            }
+        }
+        return true;
     }
 }
