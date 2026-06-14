@@ -9,11 +9,13 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import javax.swing.JPanel;
+import sosim.FaseProcesso;
 import sosim.GerenciadorRecursos;
 import sosim.Processo;
 import sosim.Simulador;
 
-// 4 discos lado a lado, mostrando processo bloqueado em I/O e o tempo restante
+// 4 discos lado a lado, mostrando qual processo detem cada disco e em que fase
+// ele esta (o disco fica reservado ao processo por toda a sua execucao)
 public class PainelDiscos extends JPanel {
 
     private Simulador sim;
@@ -84,6 +86,20 @@ public class PainelDiscos extends JPanel {
         FontMetrics fmId = g2.getFontMetrics();
         g2.drawString(id, x + (w - fmId.stringWidth(id)) / 2, y + 44);
 
+        // o disco fica reservado por toda a execucao; mostra a fase atual do
+        // dono pra deixar claro que "ocupado" nao quer dizer "fazendo I/O agora"
+        g2.setColor(Tema.TEXTO);
+        g2.setFont(Tema.FONTE_PEQUENA);
+        String fase = faseLabel(p);
+        FontMetrics fmF = g2.getFontMetrics();
+        g2.drawString(fase, x + (w - fmF.stringWidth(fase)) / 2, y + 62);
+    }
+
+    private String faseLabel(Processo p) {
+        if (p.getFase() == FaseProcesso.IO) return "em I/O";
+        if (p.getFase() == FaseProcesso.CPU1) return "em CPU1";
+        if (p.getFase() == FaseProcesso.CPU2) return "em CPU2";
+        return "reservado";
     }
 
 }

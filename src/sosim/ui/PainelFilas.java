@@ -14,7 +14,7 @@ import sosim.Processo;
 import sosim.Simulador;
 
 // mostra todas as filas (FCFS tempo real, Q0/Q1/Q2 do feedback,
-// espera por memoria e espera por disco)
+// espera por memoria, espera por disco e bloqueados em I/O)
 // cada processo vira uma "pilula" com cor propria
 public class PainelFilas extends JPanel {
 
@@ -26,7 +26,7 @@ public class PainelFilas extends JPanel {
 
     public PainelFilas() {
         setBackground(Tema.FUNDO_PAINEL);
-        setPreferredSize(new Dimension(0, 180));
+        setPreferredSize(new Dimension(0, 200));
     }
 
     public void setSimulador(Simulador s) {
@@ -56,7 +56,9 @@ public class PainelFilas extends JPanel {
         }
         desenharLinha(g2, "Esp. memoria", sim.getEsperandoMemoria(), y, Tema.ALERTA);
         y += LINHA;
-        desenharLinha(g2, "Bloqueados: ", sim.getBloqueados(), y, Tema.CRITICO);
+        desenharLinha(g2, "Esp. disco", sim.getEsperandoDisco(), y, Tema.ALERTA);
+        y += LINHA;
+        desenharLinha(g2, "Bloqueados", sim.getBloqueados(), y, Tema.CRITICO);
 
         g2.dispose();
     }

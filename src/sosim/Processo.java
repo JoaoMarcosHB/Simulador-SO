@@ -71,7 +71,8 @@ public class Processo {
         // decide a fase inicial pelo que o processo realmente precisa fazer
         // CPU1 primeiro, depois IO se nao tem CPU1, depois CPU2 se nao tem IO,
         // e CONCLUIDO se for um descritor sem nenhum trabalho (no-op defensivo)
-        this.fase = faseInicial(cpu1, io, cpu2);
+        // usa this.ioTotal (ja zerado pra tempo real) e nao o parametro cru
+        this.fase = faseInicial(cpu1, this.ioTotal, cpu2);
 
         this.filaFeedback = tipo == TipoProcesso.USUARIO ? 0 : -1;
         this.quantumUsado = 0;

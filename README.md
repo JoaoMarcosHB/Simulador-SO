@@ -21,7 +21,16 @@ A memória é particionada dinamicamente. Os 2 GiB do topo são reservados para 
 
 ## Fases do processo
 
-Cada processo pode ter as fases `CPU1 → I/O → CPU2`, ou ser puramente CPU-bound (`I/O = 0` e `CPU2 = 0`). Durante o I/O o processo ocupa um disco; se nenhum disco estiver livre, ele aguarda em fila FIFO.
+Cada processo pode ter as fases `CPU1 → I/O → CPU2`, ou ser puramente CPU-bound (`I/O = 0` e `CPU2 = 0`).
+
+## Discos (recurso compartilhado)
+
+Os discos modelam um recurso compartilhado que limita a concorrência entre processos de usuário. Cada processo de usuário declara quantos discos precisa (`numdiscos`). O despachante só coloca um processo para executar quando consegue reservar **todos** os discos que ele pediu, e esses discos ficam **exclusivos para o processo durante toda a sua execução** — CPU1, I/O e CPU2, inclusive enquanto ele está preemptado na fila de prontos. Os discos só são liberados quando o processo finaliza.
+
+Consequências:
+- Quem pede mais discos do que há livres fica pronto mas não é despachado, cedendo a vez a processos que cabem nos discos disponíveis (sem bloquear a fila inteira).
+- Como os discos ficam presos a um processo bloqueado em I/O, uma CPU pode ficar ociosa mesmo havendo processos prontos — é exatamente a concorrência por recurso que o trabalho pede para simular.
+- Processos de tempo real **não usam disco** (e não têm fase de I/O).
 
 ## Estados
 
@@ -43,14 +52,15 @@ Assume `chegada = 0` e `tipo = usuário`.
 
 ### Formato estendido (recomendado)
 ```
-[id, chegada, prioridade, cpu1, io, cpu2, ram_mb]
+[id, chegada, prioridade, cpu1, io, cpu2, ram_mb, numdiscos]
 ```
-Onde `prioridade = 0` significa tempo real e `prioridade = 1` significa usuário.
+Onde `prioridade = 0` significa tempo real e `prioridade = 1` significa usuário, e `numdiscos` é a quantidade de discos que o processo reserva durante toda a execução (ignorado para tempo real; limitado a 4). O formato curto assume `numdiscos = 0`.
 
 ### Exemplos prontos
 - `entrada/entrada_basica.txt` — formato curto, vários processos de usuário.
 - `entrada/entrada_misturada.txt` — mistura tempo real e usuário com chegadas escalonadas.
 - `entrada/entrada_pressao_memoria.txt` — força espera por memória.
+- `entrada/entrada_discos.txt` — força disputa por discos (demanda total maior que 4).
 
 ## Como compilar e executar
 
@@ -73,8 +83,8 @@ A flag `--silencioso` reduz o nível de detalhe (oculta mensagens de fila e mapa
 A interface mostra em tempo real:
 
 - **CPUs**: cartão por CPU com o processo em execução, tipo, fila do feedback, barra de quantum e fase (CPU1/CPU2).
-- **Discos**: cartão por disco com o processo em I/O e barra de progresso.
-- **Filas**: FCFS de tempo real, Q0/Q1/Q2 do feedback, espera por memória e espera por disco. Cada processo vira uma "pílula" colorida.
+- **Discos**: cartão por disco mostrando qual processo o detém e em que fase ele está (o disco fica reservado por toda a execução, não só durante o I/O).
+- **Filas**: FCFS de tempo real, Q0/Q1/Q2 do feedback, espera por memória, espera por disco (processos que começam em I/O e ainda não conseguiram discos) e bloqueados (em I/O). Cada processo vira uma "pílula" colorida.
 - **Memória**: barra horizontal de 32 GiB, divisão entre área de usuário (esquerda) e área reservada a tempo real (direita). Blocos coloridos representam processos alocados.
 - **Log**: rolagem com cada mensagem emitida pelo simulador.
 - **Toolbar**: `Abrir...`, `Play/Pausar`, `Passo` (1 u.t.), `Reiniciar`, `Resumo` (após o fim), e slider de velocidade.
@@ -119,7 +129,8 @@ src/sosim/
 
 ## Decisões de projeto
 
-- **Tick discreto:** simulação avança em unidades de tempo inteiras. Cada CPU/disco ocupado consome 1 u.t. por tick.
-- **Preempção por tempo real:** se um tempo real está pronto e todas as CPUs estão ocupadas, a primeira CPU servindo um processo de usuário é tomada e o processo retorna à sua fila de feedback (sem rebaixamento).
+- **Tick discreto:** simulação avança em unidades de tempo inteiras. Cada CPU ocupada consome 1 u.t. de CPU e cada processo bloqueado consome 1 u.t. de I/O por tick.
+- **Discos presos à execução inteira:** os discos são reservados no despacho e só liberados na finalização do processo (não no fim do I/O). Assim um processo preemptado — por quantum ou por tempo real — **mantém** seus discos enquanto espera na fila, garantindo o uso exclusivo durante toda a execução exigido pelo enunciado.
+- **Preempção por tempo real:** se um tempo real está pronto e todas as CPUs estão ocupadas, a primeira CPU servindo um processo de usuário é tomada e o processo retorna à sua fila de feedback (sem rebaixamento), conservando os discos que já tinha.
 - **Boost ao voltar de I/O:** processos voltam para a *mesma* fila em que estavam (não há boost para Q0). Decisão para evitar starvation reverso onde processos que fazem muito I/O monopolizam o topo.
 - **Limite de segurança:** loop principal interrompe se ultrapassar uma folga generosa baseada na soma das durações; protege contra entradas patológicas.
